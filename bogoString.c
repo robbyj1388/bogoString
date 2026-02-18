@@ -1,14 +1,38 @@
 #include <stdlib.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+// Global variables
+char* word = NULL;
+long step = 0;
+
+// Print current incomplete stats
+void onSignalPrintStats(int sig){
+  printf("\n");
+  printf("PROGRAM CANCELLED!\n");
+  printf("Selected WORD: %s\n", word);
+  printf("CURRENT STEP COUNT: %ld\n", step);
+  exit(sig);
+}
 
 int main(int argc, char** argv){
+  // Get terminal size
+  struct winsize w;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+  printf ("lines %d\n", w.ws_row); // ____________________________USE THIS TO PRINT IN MIDDLE OF SCREEN
+  printf ("columns %d\n", w.ws_col);
+  // Handle ctrl c quitting program
+  signal(SIGINT, onSignalPrintStats);
   // Seed random via current time 
   srand(time(NULL));
 
-  // Allocate user string
-  char* word = malloc(sizeof(char) * 256); // 255 + 1 (\0) 
+  word = malloc(sizeof(char) * 256); // 255 + 1 (\0) 
   if (word == NULL){
     printf("WORD MEMORY ALLOCATION FAILED\n");
     return 1;
@@ -30,7 +54,6 @@ int main(int argc, char** argv){
 
   // While word is not a substring of generatedWord
   int i = 0;
-  long step = 0;
   char randomCharacter;
  
   while(1){
@@ -49,17 +72,14 @@ int main(int argc, char** argv){
       i=0;
     }
   }
-
+  
+  // Print out stats of found word
   printf("\n");
-
   printf("Selected WORD: %s\n", word);
   printf("STEPS: %ld\n", step);
-  printf("%d", 'a');
-  
+
   // Free up memory
   free(word);
-  free(generatedWord);
-  generatedWord = NULL;
   word = NULL;
   return 0;
 }
