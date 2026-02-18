@@ -4,20 +4,17 @@
 #include <string.h>
 #include <time.h>
 #include <sys/ioctl.h>
-#include <stdio.h>
 #include <unistd.h>
 
 // Global variables
 char* word = NULL;
 long step = 0;
 
-// Print current incomplete stats
-void onSignalPrintStats(int sig){
-  printf("\n");
-  printf("PROGRAM CANCELLED!\n");
-  printf("Selected WORD: %s\n", word);
-  printf("CURRENT STEP COUNT: %ld\n", step);
-  exit(sig);
+volatile sig_atomic_t interrupted = 0;
+// If signal is passed (ex: ctrl c) interrupted = 1
+void onSignalPrintStats(int sig) {
+    (void)sig; // explicitly mark as unused
+    interrupted = 1;
 }
 
 int main(int argc, char** argv){
@@ -27,7 +24,7 @@ int main(int argc, char** argv){
 
   printf ("lines %d\n", w.ws_row); // ____________________________USE THIS TO PRINT IN MIDDLE OF SCREEN
   printf ("columns %d\n", w.ws_col);
-  // Handle ctrl c quitting program
+  // On signal (ex: ctrl c) call method onSignalPrintStats
   signal(SIGINT, onSignalPrintStats);
   // Seed random via current time 
   srand(time(NULL));
@@ -40,11 +37,12 @@ int main(int argc, char** argv){
 
   // Check amount of args
   if(argc == 2){
-    strcpy(word, argv[1]); // set word to passed arg
+    strncpy(word, argv[1], 255);
+    word[255] = '\0';
   }else{
     // Get word from user
     printf("Enter word: ");
-    if (scanf("%s", word) != 1){
+    if (scanf("%255s", word) != 1){
       printf("ERROR ON INPUT!\n");
       return 1;
     }
@@ -57,6 +55,15 @@ int main(int argc, char** argv){
   char randomCharacter;
  
   while(1){
+    if (interrupted){
+      printf("\n");
+      printf("PROGRAM CANCELLED!\n");
+      printf("Selected WORD: %s\n", word);
+      printf("CURRENT STEP COUNT: %ld\n", step);
+      free(word);
+      word = NULL;
+      exit(0);
+    }
     // if i == wordLength word found
     if(i == wordLength){
       break;
