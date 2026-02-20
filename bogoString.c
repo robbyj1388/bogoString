@@ -5,6 +5,27 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <stdint.h>
+
+// State can't be all zeros. Using time(NULL) makes it different every run.
+uint64_t s[2] = {0x12345678, 0xABCDEF01}; 
+
+uint64_t xorshift128plus(void) {
+  uint64_t x = s[0];                   // Take the first half of the state
+  uint64_t const y = s[1];             // Take the second half of the state
+  s[0] = y;                            // Move the second half to the first (rotation)
+  
+  x ^= x << 23;                        // Scramble x: shift left and XOR
+  
+  // Mix everything together to create the new second half
+  s[1] = x ^ y ^ (x >> 18) ^ (y >> 5); 
+  
+  // The range logic:
+  // 1. (s[1] + y) is the raw random number.
+  // 2. % 95 keeps it between 0 and 94.
+  // 3. + 32 shifts it to the range 32 to 126.
+  return ((s[1] + y) % 95) + 32;
+}
 
 // Global variables
 char* word = NULL;
@@ -13,8 +34,8 @@ long step = 0;
 volatile sig_atomic_t interrupted = 0;
 // If signal is passed (ex: ctrl c) interrupted = 1
 void onSignalPrintStats(int sig) {
-    (void)sig; // explicitly mark as unused
-    interrupted = 1;
+  (void)sig; // explicitly mark as unused
+  interrupted = 1;
 }
 
 int main(int argc, char** argv){
@@ -27,7 +48,9 @@ int main(int argc, char** argv){
   // On signal (ex: ctrl c) call method onSignalPrintStats
   signal(SIGINT, onSignalPrintStats);
   // Seed random via current time 
-  srand(time(NULL));
+  uint64_t t = (uint64_t)time(NULL);
+  s[0] = t;
+  s[1] = t ^ 0xABCDEF0123456789ULL; // Ensure they aren't the same
 
   word = malloc(sizeof(char) * 256); // 255 + 1 (\0) 
   if (word == NULL){
@@ -68,15 +91,20 @@ int main(int argc, char** argv){
     if(i == wordLength){
       break;
     }
-    randomCharacter = (rand() % 126) + 32; // 31 < rand < 127 ascii character
+    randomCharacter = (char)xorshift128plus();
     step++;
-    printf("%c", randomCharacter);
+    printf("%c", randomCharacter); 
 
-    // Check if character i in word == randomCharacter
-    if(word[i] == randomCharacter){
-      i++;
-    }else{ // if not word reset pointer 
-      i=0;
+    if (word[i] == randomCharacter) {
+        // Char matches the random char 
+        i++;
+    } else {
+        // If random char is start of word, i=1 
+        if (randomCharacter == word[0]) {
+            i = 1;
+        } else {
+            i = 0; 
+        }
     }
   }
   
