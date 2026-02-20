@@ -84,6 +84,7 @@ int main(int argc, char** argv){
   printf("\n");
   printf("Selected WORD: %s\n", word);
   printf("STEPS: %ld\n", step);
+  printf("Seed: %ld\n", time(NULL));
 
   // Free up memory
   free(word);
