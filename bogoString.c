@@ -43,9 +43,6 @@ int main(int argc, char **argv) {
   struct winsize w;
   ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 
-  printf("lines %d\n", w.ws_row); // ____________________________USE THIS TO
-                                  // PRINT IN MIDDLE OF SCREEN
-  printf("columns %d\n", w.ws_col);
   // On signal (ex: ctrl c) call method onSignalPrintStats
   signal(SIGINT, onSignalPrintStats);
   // Seed random via current time
@@ -64,7 +61,7 @@ int main(int argc, char **argv) {
     strncpy(word, argv[1], 255);
     word[255] = '\0';
   }
-
+  // Color options
   if (argc >= 3) {
     if (strcmp(argv[2], "fill") == 0) {
       textFill = 1;
